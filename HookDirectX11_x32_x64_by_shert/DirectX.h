@@ -28,13 +28,14 @@ private:
 	ID3D11Buffer* _pVertexBuffer = nullptr;
 	ID3D11InputLayout* _pInputLayout = nullptr;
 
-	void GetPresentPointer(OUT void** ppPresent);
-	void GetOriginSwapChain(void* pPresent, IDXGISwapChain** pOriginSwapChain);
-	bool GetData();
+	HRESULT GetPresentPointer(OUT void** ppPresent);
+	HRESULT GetOriginSwapChain(void* pPresent, IDXGISwapChain** pOriginSwapChain);
+	HRESULT GetData();
 
-	bool CompileShader(const char* szShader, const char* szEntrypoint, const char* szTarget, ID3D10Blob** pCompiledShaderBlob);
-	bool CreateShader();
+	HRESULT CompileShader(const char* szShader, const char* szEntrypoint, const char* szTarget, ID3D10Blob** pCompiledShaderBlob);
+	HRESULT CreateShader();
 public:
-	void Load();
-	void DrawRectangle();
+	HRESULT Load();
+	HRESULT DrawRectangle();
+	void Unhook();
 };

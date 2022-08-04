@@ -1,32 +1,39 @@
 #include <windows.h>
 #include "Hooks.h"
-
+#include <iostream>
 typedef __int64 QWORD;
 
 #ifdef _WIN64
 void* Hook::hook1(void* src, OUT void* var)
 {
+    locationOne = (void*)((QWORD)src + 0x21);
+
     DWORD oldProtect{};
 
     byte stub[] = { 0x48, 0x89, 0x08, 0x58, 0x48, 0x33, 0xC4, 0x48, 0x89, 0x45, 0x60, 0x45, 0x33, 0xF6, 0x44, 0x89, 0x44, 0x24, 0x48, 0x50, 0x48, 0xB8 };
 
-    PVOID pTrampoline = VirtualAlloc(0, 20, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    PVOID pTrampoline = VirtualAlloc(0, 15, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+    allocedOne = pTrampoline;
 
     if (pTrampoline == nullptr)
         return nullptr;
 
-    if (!VirtualProtect((void*)((QWORD)src + 0x21), 15, PAGE_EXECUTE_READWRITE, &oldProtect))
+    lenPathOne = 15;
+
+    if (!VirtualProtect(locationOne, lenPathOne, PAGE_EXECUTE_READWRITE, &oldProtect))
         return nullptr;
 
-    memset((void*)((QWORD)src + 0x21), 0x90, 15);
+    memcpy(originalBytesOne, locationOne, 15);
+    memset(locationOne, 0x90, lenPathOne);
 
-    *(byte*)((QWORD)src + 0x21) = 0x50;
+    *(byte*)locationOne = 0x50;
     *(WORD*)((QWORD)src + 0x22) = 0xB848;
     *(QWORD*)((QWORD)src + 0x24) = (QWORD)pTrampoline;
     *(WORD*)((QWORD)src + 0x2C) = 0xE0FF;
     *(byte*)((QWORD)src + 0x2E) = 0x58;
 
-    if (!VirtualProtect((void*)((QWORD)src + 0x21), 15, oldProtect, &oldProtect))
+    if (!VirtualProtect(locationOne, lenPathOne, oldProtect, &oldProtect))
         return nullptr;
 
     *(WORD*)pTrampoline = 0xB848;
@@ -39,11 +46,13 @@ void* Hook::hook1(void* src, OUT void* var)
 
     *(WORD*)((QWORD)pTrampoline + 0x28) = 0xE0FF;
 
-    return (void*)((QWORD)src + 0x21);
+    return locationOne;
 }
 
 void* Hook::hook2(void* src, void* dst)
 {
+    locationTwo = src;
+
     DWORD oldProtect{};
 
     byte stub1[] = { 
@@ -51,15 +60,20 @@ void* Hook::hook2(void* src, void* dst)
         0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74, 0x24, 0x20, 0x55, 0x57, 0x41, 0x56
     };
 
-    PVOID pTrampoline = VirtualAlloc(0, 20, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    PVOID pTrampoline = VirtualAlloc(0, 14, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+    allocedTwo = pTrampoline;
 
     if (pTrampoline == nullptr)
         return nullptr;
 
-    if (!VirtualProtect(src, 14, PAGE_EXECUTE_READWRITE, &oldProtect))
+    lenPathTwo = 14;
+
+    if (!VirtualProtect(src, lenPathTwo, PAGE_EXECUTE_READWRITE, &oldProtect))
         return nullptr;
 
-    memset(src, 0x90, 14);
+    memcpy(originalBytesTwo, src, lenPathTwo);
+    memset(src, 0x90, lenPathTwo);
 
     *(byte*)src = 0x50;
     *(WORD*)((QWORD)src + 0x1) = 0xB848;
@@ -67,7 +81,7 @@ void* Hook::hook2(void* src, void* dst)
     *(WORD*)((QWORD)src + 0xB) = 0xE0FF;
     *(byte*)((QWORD)src + 0xD) = 0x58;
 
-    if (!VirtualProtect(src, 14, oldProtect, &oldProtect))
+    if (!VirtualProtect(src, lenPathTwo, oldProtect, &oldProtect))
         return nullptr;
 
     byte stub2[] = { 0x53, 0x51, 0x52, 0x55, 0x54, 0x56, 0x57, 0x41, 0x50, 0x41, 0x51, 0x41, 0x52, 0x41, 0x53, 0x41, 0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57, 0x9C };
@@ -90,13 +104,17 @@ void* Hook::hook2(void* src, void* dst)
 #else
 void* Hook::hook1(void* src, OUT void* var)
 {
+    locationOne = (void*)((DWORD)src + 0x1A);
+
     DWORD oldProtect{};
 
     byte stub[] = {
         0x8D, 0x4C, 0x24, 0x0C, 0x57, 0xFF, 0x75, 0x10
     };
 
-    PVOID pTrampoline = VirtualAlloc(0, 20, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    PVOID pTrampoline = VirtualAlloc(0, 8, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+    allocedOne = pTrampoline;
 
     if (pTrampoline == nullptr)
         return nullptr;
@@ -110,15 +128,18 @@ void* Hook::hook1(void* src, OUT void* var)
 
     *(DWORD*)((DWORD)pTrampoline + 0xF) = ((DWORD)(src) + 0x22) - ((DWORD)pTrampoline + 0xE) - 5;
 
-    if(!VirtualProtect((void*)((DWORD)src + 0x1A), 0x8, PAGE_EXECUTE_READWRITE, &oldProtect))
+    lenPathOne = 8;
+
+    if(!VirtualProtect(locationOne, lenPathOne, PAGE_EXECUTE_READWRITE, &oldProtect))
         return nullptr;
 
-    memset((void*)((DWORD)src + 0x1A), 0x90, 0x8);
+    memcpy(originalBytesOne, locationOne, 8);
+    memset(locationOne, 0x90, lenPathOne);
 
-    *(byte*)((DWORD)src + 0x1A) = 0xE9;
+    *(byte*)locationOne = 0xE9;
     *(DWORD*)((DWORD)src + 0x1B) = (DWORD)pTrampoline - ((DWORD)src + 0x1A) - 5;
 
-    if (!VirtualProtect((void*)((DWORD)src + 0x1A), 0x8, oldProtect, &oldProtect))
+    if (!VirtualProtect(locationOne, lenPathOne, oldProtect, &oldProtect))
         return nullptr;
 
     return (void*)((DWORD)src + 0x1A);
@@ -126,13 +147,17 @@ void* Hook::hook1(void* src, OUT void* var)
 
 void* Hook::hook2(void* src, void* dst)
 {
+    locationTwo = src;
+
     DWORD oldProtect{};
 
     byte stub[] = {
         0x60, 0x9C
     };
 
-    PVOID pTrampoline = VirtualAlloc(0, 20, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    PVOID pTrampoline = VirtualAlloc(0, 5, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+    allocedTwo = pTrampoline;
 
     if (pTrampoline == nullptr)
         return nullptr;
@@ -151,16 +176,38 @@ void* Hook::hook2(void* src, void* dst)
 
     *(DWORD*)((DWORD)pTrampoline + 0xF) = ((DWORD)src + 5) - ((DWORD)pTrampoline + 0xE) - 5;
 
-    if (!VirtualProtect(src, 0x5, PAGE_EXECUTE_READWRITE, &oldProtect))
+    lenPathTwo = 5;
+
+    if (!VirtualProtect(src, lenPathTwo, PAGE_EXECUTE_READWRITE, &oldProtect))
         return nullptr;
+
+    memcpy(originalBytesTwo, locationTwo, 5);
 
     *(byte*)src = 0xE9;
 
     *(DWORD*)((DWORD)src + 1) = (DWORD)pTrampoline - (DWORD)src - 5;
 
-    if (!VirtualProtect(src, 0x5, oldProtect, &oldProtect))
+    if (!VirtualProtect(src, lenPathTwo, oldProtect, &oldProtect))
         return nullptr;
 
     return src;
 }
 #endif
+void Hook::Unhook()
+{
+    DWORD oldProtect{};
+
+    if (lenPathOne != 0) {
+        VirtualProtect(locationOne, lenPathOne, PAGE_EXECUTE_READWRITE, &oldProtect);
+        memcpy(locationOne, originalBytesOne, lenPathOne);
+        VirtualProtect(locationOne, lenPathOne, oldProtect, &oldProtect);
+        VirtualFree(allocedOne, 0, MEM_RELEASE);
+    }
+     
+    if (lenPathTwo != 0) {
+        VirtualProtect(locationTwo, lenPathTwo, PAGE_EXECUTE_READWRITE, &oldProtect);
+        memcpy(locationTwo, originalBytesTwo, lenPathTwo);
+        VirtualProtect(locationTwo, lenPathTwo, oldProtect, &oldProtect);
+        VirtualFree(allocedTwo, 0, MEM_RELEASE);
+    }
+}

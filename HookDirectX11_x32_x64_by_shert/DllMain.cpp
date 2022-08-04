@@ -16,16 +16,26 @@ DWORD WINAPI Main(HMODULE hModule) {
     debugConsole.Create();
 #endif // _DEBUG
 
-    direct.Load();
+    HRESULT hr = direct.Load();
+
+    if (FAILED(hr))
+        direct.Unhook();
+    else {
+        while (true)
+        {
+            Sleep(20);
+            if (GetAsyncKeyState(VK_END) & 1) {
+                direct.Unhook();
+                break;
+            }
+        }
+    }
 
 #ifdef _DEBUG
-    while (true)
-    {
-        Sleep(50);
-    }
     debugConsole.Delete();
 #endif // _DEBUG
 
+    FreeLibraryAndExitThread(hModule, 0);
     return 0;
 }
 

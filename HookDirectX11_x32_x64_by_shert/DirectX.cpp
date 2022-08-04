@@ -4,7 +4,7 @@
 
 #include "Shader.h"
 
-void Directx::GetPresentPointer(OUT void** ppPresent)
+HRESULT Directx::GetPresentPointer(OUT void** ppPresent)
 {
     IDXGISwapChain* pFakeSwapChain{};
 
@@ -24,25 +24,32 @@ void Directx::GetPresentPointer(OUT void** ppPresent)
 
     if (FAILED(status)) {
         printf("[-] D3D11CreateDeviceAndSwapChain failed!\n");
-        return;
+        return S_FALSE;
     }
 
     *ppPresent = *(*(void***)pFakeSwapChain + 0x8);
 
     pFakeSwapChain->Release();
+
+    return S_OK;
 }
 
-void Directx::GetOriginSwapChain(void* pPresent, IDXGISwapChain** pOriginSwapChain)
+HRESULT Directx::GetOriginSwapChain(void* pPresent, IDXGISwapChain** pOriginSwapChain)
 {
     void* location = hook.hook1(pPresent, pOriginSwapChain);
 
-    if(location != nullptr)
+    if (location != nullptr) {
         std::cout << "[+] Hook Present successfully installed! Patch location: 0x" << location << "\n";
-    else
+        return S_FALSE;
+    }
+    else {
         std::cout << "[-] Failed to hook1 Present :(" << "\n";
+    }
+
+    return S_OK;
 }
 
-bool Directx::GetData()
+HRESULT Directx::GetData()
 {
     void* pPresent = nullptr;
 
@@ -50,7 +57,7 @@ bool Directx::GetData()
 
     if (pPresent == nullptr) {
         std::cout << "[-] Failed to get pointer to Present :(" << "\n";
-        return false;
+        return S_FALSE;
     }
 
     GetOriginSwapChain(pPresent, &_pOriginSwapChain);
@@ -65,7 +72,7 @@ bool Directx::GetData()
 
     if (FAILED(hr)) {
         std::cout << "[-] Error -> GetDevise failed!" << "\n";
-        return false;
+        return S_FALSE;
     }
 
     std::cout << "[+] OriginDevise* successfully received! Result: 0x" << _pOriginDevise << "\n";
@@ -74,50 +81,59 @@ bool Directx::GetData()
 
     if (_pOriginDeviseContext == nullptr) {
         std::cout << "[-] Failed to get pointer to DeviseContext :(" << "\n";
-        return false;
+        return S_FALSE;
     }
 
     std::cout << "[+] OriginDeviseContext* successfully received! Result: 0x" << _pOriginDeviseContext << "\n";
 
     void* location = hook.hook2(pPresent, Render);
 
-    if(location != nullptr)
+    if (location != nullptr) {
         std::cout << "[+] Hook Present successfully installed! Patch location: 0x" << location << "\n";
-    else
+    }
+    else {
         std::cout << "[-] Failed to hook2 Present :(" << "\n";
+        return S_FALSE;
+    }
 
-    return true;
+    return S_OK;
 }
 
-void Directx::Load()
+HRESULT Directx::Load()
 {
-    if (!GetData())
-        return;
+    HRESULT result = GetData();
 
-    if (!CreateShader())
-        return;
+    if (FAILED(result))
+        return S_FALSE;
+
+    result = CreateShader();
+
+    if (FAILED(result))
+        return S_FALSE;
+
+    return S_OK;
 }
 
-bool Directx::CompileShader(const char* data, const char* shaderEntrypoint, const char* shaderTarget, ID3D10Blob** pCompiledShaderBlob)
+HRESULT Directx::CompileShader(const char* data, const char* shaderEntrypoint, const char* shaderTarget, ID3D10Blob** pCompiledShaderBlob)
 {
     ID3D10Blob* pErrorBlob = nullptr;
 
     HRESULT hr = D3DCompile(data, strlen(data), 0, nullptr, nullptr, shaderEntrypoint, shaderTarget, D3DCOMPILE_ENABLE_STRICTNESS, 0, pCompiledShaderBlob, &pErrorBlob);
 
     if (FAILED(hr))
-        return false;
+        return S_FALSE;
 
-    return true;
+    return S_OK;
 }
 
-bool Directx::CreateShader()
+HRESULT Directx::CreateShader()
 {
     ID3D10Blob* pCompiledShaderBlob = nullptr;
 
-    if (!CompileShader(shader, "VS", "vs_5_0", &pCompiledShaderBlob))
+    if (FAILED(CompileShader(shader, "VS", "vs_5_0", &pCompiledShaderBlob)))
     {
         std::cout << "[-] Failed to compile Vertex shader :(" << "\n";
-        return false;
+        return S_FALSE;
     }
 
     HRESULT hr = _pOriginDevise->CreateVertexShader(pCompiledShaderBlob->GetBufferPointer(), pCompiledShaderBlob->GetBufferSize(), nullptr, &_pVertexShader);
@@ -125,7 +141,7 @@ bool Directx::CreateShader()
     if (FAILED(hr)) 
     {
         std::cout << "[-] Failed CreateVertexShader :(" << "\n";
-        return false;
+        return S_FALSE;
     }
 
     D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -137,10 +153,10 @@ bool Directx::CreateShader()
 
     _pOriginDevise->CreateInputLayout(layout, numElements, pCompiledShaderBlob->GetBufferPointer(), pCompiledShaderBlob->GetBufferSize(), &_pInputLayout);
 
-    if (!CompileShader(shader, "PS", "ps_5_0", &pCompiledShaderBlob))
+    if (FAILED(CompileShader(shader, "PS", "ps_5_0", &pCompiledShaderBlob)))
     {
         std::cout << "[-] Failed to compile Pixel shader" << "\n";
-        return false;
+        return S_FALSE;
     }
 
     hr = _pOriginDevise->CreatePixelShader(pCompiledShaderBlob->GetBufferPointer(), pCompiledShaderBlob->GetBufferSize(), nullptr, &_pPixelShader);
@@ -148,19 +164,19 @@ bool Directx::CreateShader()
     if (FAILED(hr))
     {
         std::cout << "[-] Failed CreatePixelShader :(" << "\n";
-        return false;
+        return S_FALSE;
     }
 
     pCompiledShaderBlob->Release();
 
-    return true;
+    return S_OK;
 }
 
-void Directx::DrawRectangle()
+HRESULT Directx::DrawRectangle()
 {
     UINT stride = sizeof(VERTEX);
     UINT offset = 0;
-
+    
     if (_pVertexBuffer == nullptr) {
         VERTEX arrayVertex[] = {
             { XMFLOAT3(-0.8f,  0.8,  0) },
@@ -187,11 +203,11 @@ void Directx::DrawRectangle()
         result = _pOriginDevise->CreateBuffer(&bufferParam, &initData, &_pVertexBuffer);
 
         if (FAILED(result)) {
-            printf("[-] DirectX::DrawRectangle -> CreateBuffer exeption! HRESULT = %i\n", result);
-            return;
+            std::cout << "[-] DirectX::DrawRectangle->CreateBuffer exeption! HRESULT = " << result << "\n";
+            return S_FALSE;
         }
         else {
-            printf("[+] DirectX::DrawRectangle -> CreateBuffer success!\n");
+            std::cout << "[+] DirectX::DrawRectangle -> CreateBuffer success!" << "\n";
         }
     }
 
@@ -201,4 +217,20 @@ void Directx::DrawRectangle()
     _pOriginDeviseContext->PSSetShader(_pPixelShader, nullptr, 0);
     _pOriginDeviseContext->IASetVertexBuffers(0, 1, &_pVertexBuffer, &stride, &offset);
     _pOriginDeviseContext->Draw(4, 0);
+
+    return S_OK;
+}
+
+void Directx::Unhook()
+{
+    std::cout << "[+] Unhooked..." << "\n";
+
+    Sleep(2000);
+
+    hook.Unhook();
+
+    _pVertexShader->Release();
+    _pPixelShader->Release();
+    _pVertexBuffer->Release();
+    _pInputLayout->Release();
 }
